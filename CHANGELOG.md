@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+### Added
+
+- FileSearchCraft: a Windows desktop app (egui) modelled on Everything, with one search box over
+  every fixed drive.
+- NTFS master file table indexing when running as administrator, with a parallel folder scan as
+  the fallback, and a **Run as admin** button to restart elevated.
+- Per-drive index cache in `%LOCALAPPDATA%\FileSearchCraft\index`, loaded at startup and refreshed
+  in the background when older than a configurable age (default 60 minutes); F5 re-indexes.
+- Everything-style query language: AND terms, `"phrases"`, `!negation`, `a|b`, wildcards, path
+  terms, `ext:`, `file:`, `folder:`, `size:`, `dm:`, `regex:` and `path:`, plus Match case,
+  Match path and Regex toggles.
+- Results table sortable by name, path, size (folders show their total size) and date, with
+  precomputed sort orders, parallel filtering and a cross-drive merge.
+- Preview pane for text, images, binary (hex) and folders, with an inline editor that keeps the
+  BOM and CRLF line endings, detects changes made on disk, and asks before discarding edits.
+- Open, Show in folder, Properties, Copy path and name, and External editor (`FSC_EDITOR`,
+  `VISUAL` or `EDITOR`, else Notepad) from the context menu, preview pane and keyboard shortcuts.
+- Settings for the editor command, which drives to index and cache age; window size, sort and
+  search options persist between sessions.
+- User guide, architecture notes and an opt-in benchmark (`FSC_BENCH_ROOT`).

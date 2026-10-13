@@ -1,0 +1,76 @@
+# Architecture
+
+| File | Responsibility |
+| --- | --- |
+| `src/main.rs` | Window setup (`eframe`), image loaders |
+| `src/app.rs` | The UI: search box, results table, preview/editor, status bar, settings, keys |
+| `src/index.rs` | `VolumeIndex` data model, builder, sort orders, folder sizes, disk cache |
+| `src/mft.rs` | NTFS master file table reader (administrator) |
+| `src/walk.rs` | Parallel directory walk (fallback, no admin) |
+| `src/indexer.rs` | Drive discovery and background (re)indexing per drive |
+| `src/search.rs` | Query language, parallel filtering, cross-drive merge, background searcher |
+| `src/preview.rs` | Preview content and inline editing (encoding, line endings, conflicts) |
+| `src/actions.rs` | Shell integration: open, reveal, properties, external editor, elevation |
+| `src/util.rs` | FILETIME and size formatting, local-time helpers |
+
+## Index layout
+
+Each drive is one immutable `VolumeIndex`, shared through `Arc` and swapped atomically when a
+re-index completes. Entries are fixed-size structs (parent id, attributes, size, FILETIME,
+offsets into two string arenas: original names and lowercased names). Entry 0 is the drive root;
+full paths are rebuilt on demand by walking parent ids, so no path strings are stored.
+
+Four sort orders (`by_name`, `by_path`, `by_size`, `by_date`) are precomputed with a parallel
+merge sort when the index is built. Searching walks the order for the requested column and keeps
+matching ids, so results come out already sorted and no per-query sort is needed. The path order
+sorts by (rank of the parent folder's full path, name).
+
+Folder sizes are the sum of all files below them, propagated up the parent chain after building.
+
+## Indexing
+
+- **MFT** (`mft.rs`) — opens `\\.\X:`, gets the geometry with `FSCTL_GET_NTFS_VOLUME_DATA`, decodes
+  the data runs of `$MFT` from record 0, then reads the table in 4 MB chunks. For each record it
+  applies the update-sequence fixups (rejecting torn records) and parses `$STANDARD_INFORMATION`
+  (mtime, attributes), `$FILE_NAME` (parent, name; Win32 names are preferred over DOS 8.3 names)
+  and the unnamed `$DATA` attribute (size). Extension records are merged into their base record.
+  Only records reachable from the root (record 5) through valid parents are kept, which drops the
+  NTFS metadata files and anything under `$Extend`.
+- **Walk** (`walk.rs`) — worker threads pull directories from a shared queue. Every entry gets its
+  final id from an atomic counter, so subdirectories are queued with their id and a single
+  collector thread fills the table without any path lookups. Junctions and symlinks are listed but
+  not followed. On Windows the metadata comes from the directory listing itself.
+- **Indexer** (`indexer.rs`) — one thread per drive: load the cache and publish it, then rebuild
+  if the cache is missing or too old (MFT when elevated and NTFS, else walk, with walk as the
+  fallback when the MFT read fails), save the cache and publish again. Each drive has its own
+  cancel flag. Progress is exposed through atomics that the status bar reads.
+
+## Cache format
+
+`%LOCALAPPDATA%\FileSearchCraft\index\<letter>.idx`, little-endian: magic and version, drive letter,
+source, build time, both name arenas, the entry table and the four sort orders. Files are written
+to a temporary name and renamed into place. Loading validates every offset, parent id and order
+id, and a cache that fails validation is ignored and rebuilt.
+
+## Searching
+
+`Query::parse` turns the text into clauses (AND), each with alternatives (OR, from `a|b`) and an
+optional negation. A clause is a substring test (`memchr::memmem` on the lowercased name arena),
+a wildcard (`globset`), a regex, an extension, type, size or date test. Full paths are only built
+for path terms, once per entry, in a per-thread scratch buffer.
+
+Each drive is filtered on its own thread, and drives with more than 50,000 entries are split
+across worker threads by chunks of the sort order. Per-drive results are then merged pairwise in
+parallel rounds by the sort key (path order just concatenates drives in letter order).
+
+The `Searcher` runs on a background thread. Every keystroke submits a request with a new
+generation number; running searches check it periodically and abandon stale work, and only the
+newest result is shown. Each response carries the `Index` snapshot its hits refer to, so the UI
+never mixes ids from different snapshots. The unfiltered list for each sort order is cached per
+snapshot, so clearing the query is instant.
+
+## UI
+
+`egui`/`eframe` (OpenGL backend). The results table (`egui_extras::TableBuilder`) only lays out
+visible rows, so millions of results scroll smoothly. Selection is remembered by path and restored
+when new results or a new index arrive. Release builds use the Windows GUI subsystem (no console).
