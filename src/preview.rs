@@ -228,7 +228,7 @@ mod tests {
     use super::*;
 
     fn temp(name: &str, bytes: &[u8]) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("fsc-preview-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pounce-preview-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let p = dir.join(name);
         fs::write(&p, bytes).unwrap();

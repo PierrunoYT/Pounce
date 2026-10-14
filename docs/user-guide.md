@@ -1,7 +1,7 @@
 # User guide
 
-FileSearchCraft indexes every file and folder on your fixed drives and finds them as you type,
-like [Everything](https://www.voidtools.com/). Start `FileSearchCraft.exe`; there are no command-line options.
+Pounce indexes every file and folder on your fixed drives and finds them as you type,
+like [Everything](https://www.voidtools.com/). Start `Pounce.exe`; there are no command-line options.
 
 ## Window
 
@@ -19,7 +19,7 @@ like [Everything](https://www.voidtools.com/). Start `FileSearchCraft.exe`; ther
 
 ## Indexing
 
-On start, each drive's index is loaded from the cache in `%LOCALAPPDATA%\FileSearchCraft\index`,
+On start, each drive's index is loaded from the cache in `%LOCALAPPDATA%\Pounce\index`,
 so the window is searchable in about a second. A drive is then re-indexed in the background when
 its cache is older than the configured age (default 60 minutes); **File → Re-index all drives**
 (F5) forces it. Results stay searchable while re-indexing runs.
@@ -68,7 +68,7 @@ Select a file to preview it. Text files show their first 512 KB.
   **Overwrite** or **Reload from disk**.
 - Switching to another result or closing the window with unsaved changes asks whether to save.
 - **External editor** (Ctrl+E) opens the file in the editor set in **Settings** (default: the
-  `FSC_EDITOR`, `VISUAL` or `EDITOR` environment variable, else Notepad). For VS Code use `code`.
+  `POUNCE_EDITOR`, `VISUAL` or `EDITOR` environment variable, else Notepad). For VS Code use `code`.
 
 ## Actions
 

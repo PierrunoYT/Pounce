@@ -36,7 +36,7 @@ enum RowAction {
     CopyName,
 }
 
-pub struct FileSearchCraftApp {
+pub struct PounceApp {
     indexer: Indexer,
     searcher: Searcher,
     drives: Vec<Drive>,
@@ -77,7 +77,7 @@ pub struct FileSearchCraftApp {
     tz_offset: i64,
 }
 
-impl FileSearchCraftApp {
+impl PounceApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let get = |key: &str| cc.storage.and_then(|s| s.get_string(key));
         let editor = get(KEY_EDITOR).filter(|s| !s.trim().is_empty()).unwrap_or_else(actions::default_editor);
@@ -101,7 +101,7 @@ impl FileSearchCraftApp {
         let included: Vec<Drive> = drives.iter().filter(|d| !excluded.contains(&d.letter)).cloned().collect();
         indexer.start(included, Duration::from_secs(max_age_minutes * 60), false);
 
-        FileSearchCraftApp {
+        PounceApp {
             indexer,
             searcher,
             drives,
@@ -1123,7 +1123,7 @@ fn decode_sort(s: &str) -> Sort {
     Sort { key, descending: dir == "desc" }
 }
 
-impl eframe::App for FileSearchCraftApp {
+impl eframe::App for PounceApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
 

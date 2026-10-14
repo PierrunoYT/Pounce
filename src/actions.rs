@@ -87,9 +87,9 @@ pub fn properties(path: &Path) -> io::Result<()> {
     }
 }
 
-/// The editor command: `FSC_EDITOR`, `VISUAL`, `EDITOR`, else Notepad.
+/// The editor command: `POUNCE_EDITOR`, `VISUAL`, `EDITOR`, else Notepad.
 pub fn default_editor() -> String {
-    ["FSC_EDITOR", "VISUAL", "EDITOR"]
+    ["POUNCE_EDITOR", "VISUAL", "EDITOR"]
         .iter()
         .find_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()))
         .unwrap_or_else(|| "notepad".to_string())

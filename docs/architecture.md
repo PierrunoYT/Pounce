@@ -47,7 +47,7 @@ Folder sizes are the sum of all files below them, propagated up the parent chain
 
 ## Cache format
 
-`%LOCALAPPDATA%\FileSearchCraft\index\<letter>.idx`, little-endian: magic and version, drive letter,
+`%LOCALAPPDATA%\Pounce\index\<letter>.idx`, little-endian: magic and version, drive letter,
 source, build time, both name arenas, the entry table and the four sort orders. Files are written
 to a temporary name and renamed into place. Loading validates every offset, parent id and order
 id, and a cache that fails validation is ignored and rebuilt.

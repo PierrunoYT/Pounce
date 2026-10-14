@@ -1,4 +1,4 @@
-# FileSearchCraft
+# Pounce
 
 Instant file search for Windows: a desktop app in the spirit of
 [Everything](https://www.voidtools.com/), written in Rust. It indexes every file and folder on your
@@ -30,14 +30,14 @@ Measured on a machine with 7 drives and 13 million files, without admin rights:
 
 ```powershell
 cargo build --release
-.\target\release\FileSearchCraft.exe
+.\target\release\Pounce.exe
 ```
 
 Run it as administrator (or click **⚡ Run as admin** in the status bar) for MFT indexing.
 
 ```powershell
 cargo test                                                        # unit tests
-$env:FSC_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignored --nocapture
+$env:POUNCE_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignored --nocapture
 ```
 
 ## Documentation
