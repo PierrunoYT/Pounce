@@ -3,7 +3,7 @@
 use crate::actions;
 use crate::index::{ATTR_HIDDEN, ATTR_SYSTEM, Index, SortKey, Source, data_dir};
 use crate::indexer::{Drive, IndexEvent, Indexer, Phase, fixed_drives};
-use crate::preview::{Content, Preview, SaveError};
+use crate::preview::{Content, Preview, PreviewLoader, SaveError};
 use crate::search::{Hit, SearchOptions, Searcher, Sort};
 use crate::util::{format_filetime, format_size, group_digits, local_offset};
 use eframe::egui::{self, Align, Color32, Key, Layout, Modifiers, RichText};
@@ -63,6 +63,9 @@ pub struct PounceApp {
 
     show_preview: bool,
     preview: Option<Preview>,
+    preview_loader: PreviewLoader,
+    preview_request: Option<PathBuf>,
+    edit_when_ready: bool,
     editor_focused: bool,
     pending: Option<Pending>,
     allow_close: bool,
@@ -96,6 +99,8 @@ impl PounceApp {
         let searcher = Searcher::new(move || ctx.request_repaint());
         let ctx = cc.egui_ctx.clone();
         let mut indexer = Indexer::new(move || ctx.request_repaint());
+        let ctx = cc.egui_ctx.clone();
+        let preview_loader = PreviewLoader::new(move || ctx.request_repaint());
 
         let drives = fixed_drives();
         let included: Vec<Drive> = drives.iter().filter(|d| !excluded.contains(&d.letter)).cloned().collect();
@@ -123,6 +128,9 @@ impl PounceApp {
             visible_rows: 20,
             show_preview,
             preview: None,
+            preview_loader,
+            preview_request: None,
+            edit_when_ready: false,
             editor_focused: false,
             pending: None,
             allow_close: false,
@@ -176,6 +184,18 @@ impl PounceApp {
             self.restore_selection();
         }
 
+        if let Some(mut preview) = self.preview_loader.poll()
+            && self.preview_request.as_ref() == Some(&preview.path)
+        {
+            self.preview_request = None;
+            if std::mem::take(&mut self.edit_when_ready)
+                && let Err(e) = preview.begin_edit()
+            {
+                self.set_status(e);
+            }
+            self.preview = Some(preview);
+        }
+
         if self.needs_search {
             self.needs_search = false;
             self.searching = true;
@@ -201,6 +221,8 @@ impl PounceApp {
                 self.selected_path = None;
                 if !self.preview.as_ref().is_some_and(|p| p.dirty) {
                     self.preview = None;
+                    self.preview_request = None;
+                    self.edit_when_ready = false;
                 }
             }
         }
@@ -241,10 +263,19 @@ impl PounceApp {
         let Some(hit) = self.selected else { return };
         let v = self.shown.volume(hit.vol);
         let path = PathBuf::from(v.full_path(hit.idx));
-        if self.preview.as_ref().is_some_and(|p| p.path == path || p.dirty) {
+        if self.preview.as_ref().is_some_and(|p| p.path == path || p.dirty)
+            || self.preview_request.as_ref() == Some(&path)
+        {
             return;
         }
-        self.preview = Some(Preview::load(&path, v.entry(hit.idx).is_dir()));
+        self.request_preview(path, v.entry(hit.idx).is_dir());
+    }
+
+    fn request_preview(&mut self, path: PathBuf, is_dir: bool) {
+        self.preview = None;
+        self.edit_when_ready = false;
+        self.preview_request = Some(path.clone());
+        self.preview_loader.submit(path, is_dir);
     }
 
     fn run_action(&mut self, action: RowAction, ctx: &egui::Context) {
@@ -271,6 +302,9 @@ impl PounceApp {
                 if !self.show_preview {
                     self.show_preview = true;
                     self.load_preview();
+                }
+                if self.preview_request.as_ref() == Some(&path) {
+                    self.edit_when_ready = true;
                 }
                 if let Some(p) = self.preview.as_mut().filter(|p| p.path == path)
                     && let Err(e) = p.begin_edit() {
@@ -801,6 +835,8 @@ impl PounceApp {
             } else {
                 show_content(ui, &p.content);
             }
+        } else if self.preview_request.is_some() {
+            ui.weak("Loading preview…");
         }
 
         if begin_edit && let Some(p) = self.preview.as_mut()
@@ -816,8 +852,8 @@ impl PounceApp {
         if cancel && let Some(p) = self.preview.as_mut() {
             p.cancel_edit();
         }
-        if reload && let Some(p) = self.preview.as_mut() {
-            p.reload(e.is_dir());
+        if reload {
+            self.request_preview(PathBuf::from(&path), e.is_dir());
         }
         if let Some(a) = action {
             self.run_action(a, ctx);

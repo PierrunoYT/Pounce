@@ -4,6 +4,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use crossbeam_channel::{Receiver, Sender, unbounded};
 
 /// Bytes shown when previewing (not editing) a text file.
 const PREVIEW_BYTES: usize = 512 * 1024;
@@ -45,6 +46,53 @@ pub struct Preview {
     bom: bool,
 }
 
+/// Serial background I/O: rapid selection changes do not spawn unbounded readers.
+pub struct PreviewLoader {
+    requests: Sender<(u64, PathBuf, bool)>,
+    results: Receiver<(u64, Preview)>,
+    generation: u64,
+}
+
+impl PreviewLoader {
+    pub fn new(on_result: impl Fn() + Send + 'static) -> Self {
+        let (requests, rx) = unbounded::<(u64, PathBuf, bool)>();
+        let (tx, results) = unbounded();
+        std::thread::Builder::new()
+            .name("preview".into())
+            .spawn(move || {
+                while let Ok(mut request) = rx.recv() {
+                    // Skip selections made while the previous read was in progress.
+                    while let Ok(newer) = rx.try_recv() {
+                        request = newer;
+                    }
+                    let (generation, path, is_dir) = request;
+                    let preview = Preview::load(&path, is_dir);
+                    if tx.send((generation, preview)).is_err() {
+                        break;
+                    }
+                    on_result();
+                }
+            })
+            .expect("spawn preview thread");
+        Self { requests, results, generation: 0 }
+    }
+
+    pub fn submit(&mut self, path: PathBuf, is_dir: bool) {
+        self.generation += 1;
+        let _ = self.requests.send((self.generation, path, is_dir));
+    }
+
+    /// Only the most recently requested preview may replace the pane.
+    pub fn poll(&self) -> Option<Preview> {
+        while let Ok((generation, preview)) = self.results.try_recv() {
+            if generation == self.generation {
+                return Some(preview);
+            }
+        }
+        None
+    }
+}
+
 impl Preview {
     pub fn load(path: &Path, is_dir: bool) -> Preview {
         let mut p = Preview {
@@ -59,18 +107,33 @@ impl Preview {
             crlf: false,
             bom: false,
         };
-        p.content = if is_dir { load_dir(path) } else { p.load_file() };
+        let meta = match fs::metadata(path) {
+            Ok(m) => m,
+            Err(e) => {
+                p.not_editable = Some("file not readable".into());
+                p.content = Content::Message(format!("Cannot read file: {e}"));
+                return p;
+            }
+        };
+        // Check before reading content, enumerating folders, or handing images to egui.
+        // Cloud placeholders must not be downloaded just because a row was selected.
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            use windows_sys::Win32::Storage::FileSystem::{FILE_ATTRIBUTE_OFFLINE, FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS};
+            if meta.file_attributes() & (FILE_ATTRIBUTE_OFFLINE | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0 {
+                p.not_editable = Some("not available locally".into());
+                p.content = Content::Message(
+                    "Not fully available on this device. Preview skipped to avoid a cloud download. Download it in your sync app, then select another result and return.".into(),
+                );
+                return p;
+            }
+        }
+        p.content = if is_dir { load_dir(path) } else { p.load_file(&meta) };
         p
     }
 
-    fn load_file(&mut self) -> Content {
-        let meta = match fs::metadata(&self.path) {
-            Ok(m) => m,
-            Err(e) => {
-                self.not_editable = Some("file not readable".into());
-                return Content::Message(format!("Cannot read file: {e}"));
-            }
-        };
+    fn load_file(&mut self, meta: &fs::Metadata) -> Content {
         self.loaded_mtime = meta.modified().ok();
         let ext = self.path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
         if IMAGE_EXTENSIONS.contains(&ext.as_str()) {
@@ -178,10 +241,6 @@ impl Preview {
         Ok(())
     }
 
-    /// Reloads from disk, discarding edits.
-    pub fn reload(&mut self, is_dir: bool) {
-        *self = Preview::load(&self.path.clone(), is_dir);
-    }
 }
 
 fn truncate_at_char(s: &str, max: usize) -> String {
@@ -271,5 +330,69 @@ mod tests {
         assert!(!p.can_edit());
         let img = temp("pic.png", b"not really a png");
         assert!(matches!(Preview::load(&img, false).content, Content::Image(_)));
+    }
+
+    #[test]
+    fn background_previews_only_deliver_the_latest_selection() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::time::Duration;
+
+        let first = temp("first.txt", b"first preview");
+        let last = temp("last.txt", b"last preview");
+        let (ready_tx, ready_rx) = unbounded();
+        let (release_tx, release_rx) = unbounded();
+        let first_result = AtomicBool::new(true);
+        let mut loader = PreviewLoader::new(move || {
+            ready_tx.send(()).unwrap();
+            if first_result.swap(false, Ordering::Relaxed) {
+                // Hold the worker while the UI changes selection, without timing races.
+                let _ = release_rx.recv();
+            }
+        });
+        loader.submit(first.clone(), false);
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        fs::write(&first, b"updated preview").unwrap();
+        loader.submit(last.clone(), false);
+        // Returning to the same path must still discard its older result.
+        loader.submit(first.clone(), false);
+        assert!(loader.poll().is_none());
+        release_tx.send(()).unwrap();
+        ready_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let preview = loader.poll().expect("latest preview");
+        assert_eq!(preview.path, first);
+        assert!(matches!(preview.content, Content::Text { text, .. } if text == "updated preview"));
+        fs::remove_file(first).unwrap();
+        fs::remove_file(last).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn offline_items_are_not_read_or_sent_to_image_loaders() {
+        use std::os::windows::{ffi::OsStrExt, fs::MetadataExt};
+        use windows_sys::Win32::Storage::FileSystem::{FILE_ATTRIBUTE_OFFLINE, SetFileAttributesW};
+
+        let text = temp("offline.txt", b"local text");
+        let image = temp("offline.png", b"image bytes");
+        let folder = text.parent().unwrap().join("offline-folder");
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("child.txt"), b"child").unwrap();
+        for (path, is_dir) in [(&text, false), (&image, false), (&folder, true)] {
+            let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+            let attributes = fs::metadata(path).unwrap().file_attributes();
+            // SAFETY: NUL-terminated path to a disposable test fixture.
+            assert_ne!(unsafe { SetFileAttributesW(wide.as_ptr(), attributes | FILE_ATTRIBUTE_OFFLINE) }, 0);
+            let mut preview = Preview::load(path, is_dir);
+            // Restore before assertions so a failed check doesn't leave an offline fixture.
+            assert_ne!(unsafe { SetFileAttributesW(wide.as_ptr(), attributes) }, 0);
+            assert!(matches!(&preview.content, Content::Message(msg) if msg.contains("cloud download")));
+            assert!(!preview.can_edit());
+            assert!(preview.begin_edit().is_err());
+        }
+        assert!(matches!(Preview::load(&text, false).content, Content::Text { text, .. } if text == "local text"));
+        assert!(matches!(Preview::load(&image, false).content, Content::Image(_)));
+        assert!(matches!(Preview::load(&folder, true).content, Content::Directory { total: 1, .. }));
+        fs::remove_file(text).unwrap();
+        fs::remove_file(image).unwrap();
+        fs::remove_dir_all(folder).unwrap();
     }
 }
