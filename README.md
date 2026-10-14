@@ -4,9 +4,9 @@ Instant file search for Windows: a desktop app in the spirit of
 [Everything](https://www.voidtools.com/), written in Rust. It indexes every file and folder on your
 fixed drives and filters millions of entries as you type.
 
-![Pounce: the search window with results and a code preview](promo/pounce-hero.png)
+![Pounce: the search window with results and a code preview](docs/media/pounce-hero.png)
 
-▶ [Watch the 15-second launch video](promo/pounce-launch.mp4)
+▶ [Watch the 15-second launch video](docs/media/pounce-launch.mp4)
 
 ## Features
 
@@ -49,8 +49,6 @@ $env:POUNCE_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignor
 - [User guide](docs/user-guide.md): window, search syntax, editing, shortcuts, settings
 - [Architecture](docs/architecture.md): index layout, MFT reader, search engine
 - [Changelog](CHANGELOG.md)
-- [Promo](promo/): the launch video and screenshot are plain HTML/CSS/JS (`launch.html`); re-render
-  them with `node promo/render.mjs` (video) or `node promo/render.mjs promo/pounce-hero.png 9.4` (still)
 
 ## License
 
