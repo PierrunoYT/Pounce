@@ -11,6 +11,7 @@ All notable changes to this project are documented here. The format follows
 - Pounce: a Windows desktop app (egui) modelled on Everything, with one search box over
   every fixed drive.
 - App icon (a cat-eared magnifier), embedded in the exe and shown in the window and taskbar.
+- Launch video and hero screenshot in `promo/`, rendered from HTML with a synthesized soundtrack.
 - NTFS master file table indexing when running as administrator, with a parallel folder scan as
   the fallback, and a **Run as admin** button to restart elevated.
 - Per-drive index cache in `%LOCALAPPDATA%\Pounce\index`, loaded at startup and refreshed
