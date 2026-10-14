@@ -2251,6 +2251,7 @@ dependencies = [
  "globset",
  "image",
  "memchr",
+ "raw-window-handle",
  "regex",
  "windows-sys 0.61.2",
  "winresource",

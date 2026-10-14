@@ -17,11 +17,13 @@ egui_extras = { version = "0.36", features = ["file", "image", "gif", "webp"] }
 globset = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "ico", "gif", "webp"] }
 memchr = "2.8"
+raw-window-handle = "0.6"
 regex = "1.11"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_System_IO",
+    "Win32_System_LibraryLoader",
     "Win32_System_Ioctl",
     "Win32_System_Registry",
     "Win32_System_Time",
