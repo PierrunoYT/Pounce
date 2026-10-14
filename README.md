@@ -1,4 +1,8 @@
-# Pounce
+<p align="center"><img src="assets/icon.png" alt="" width="160"></p>
+
+<h1 align="center">Pounce</h1>
+
+<p align="center">Part of <a href="https://github.com/pierruno-labs">Pierruno Labs</a></p>
 
 Instant file search for Windows: a desktop app in the spirit of
 [Everything](https://www.voidtools.com/), written in Rust. It indexes every file and folder on your
@@ -49,6 +53,11 @@ $env:POUNCE_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignor
 - [User guide](docs/user-guide.md): window, search syntax, editing, shortcuts, settings
 - [Architecture](docs/architecture.md): index layout, MFT reader, search engine
 - [Changelog](CHANGELOG.md)
+
+## Contributing
+
+Changes go through pull requests: create a branch, push it and open a PR against `main`. Every
+PR needs one approving review before it can be merged.
 
 ## License
 
