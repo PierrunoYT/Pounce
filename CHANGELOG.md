@@ -8,13 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Pounce: a Windows desktop app (egui) modelled on Everything, with one search box over
+- FileCraft: a Windows desktop app (egui) modelled on Everything, with one search box over
   every fixed drive.
 - App icon (a pouncing cat with a magnifying glass), embedded in the exe and shown in the window and taskbar.
 - Launch video and hero screenshot in `docs/media/`.
 - NTFS master file table indexing when running as administrator, with a parallel folder scan as
   the fallback, and a **Run as admin** button to restart elevated.
-- Per-drive index cache in `%LOCALAPPDATA%\Pounce\index`, loaded at startup and refreshed
+- Per-drive index cache in `%LOCALAPPDATA%\FileCraft\index`, loaded at startup and refreshed
   in the background when older than a configurable age (default 60 minutes); F5 re-indexes.
 - Everything-style query language: AND terms, `"phrases"`, `!negation`, `a|b`, wildcards, path
   terms, `ext:`, `file:`, `folder:`, `size:`, `dm:`, `regex:` and `path:`, plus Match case,
@@ -23,8 +23,8 @@ All notable changes to this project are documented here. The format follows
   precomputed sort orders, parallel filtering and a cross-drive merge.
 - Preview pane for text, images, binary (hex) and folders, with an inline editor that keeps the
   BOM and CRLF line endings, detects changes made on disk, and asks before discarding edits.
-- Open, Show in folder, Properties, Copy path and name, and External editor (`POUNCE_EDITOR`,
+- Open, Show in folder, Properties, Copy path and name, and External editor (`FILECRAFT_EDITOR`,
   `VISUAL` or `EDITOR`, else Notepad) from the context menu, preview pane and keyboard shortcuts.
 - Settings for the editor command, which drives to index and cache age; window size, sort and
   search options persist between sessions.
-- User guide, architecture notes and an opt-in benchmark (`POUNCE_BENCH_ROOT`).
+- User guide, architecture notes and an opt-in benchmark (`FILECRAFT_BENCH_ROOT`).

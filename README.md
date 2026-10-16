@@ -1,16 +1,12 @@
 <p align="center"><img src="assets/icon.png" alt="" width="160"></p>
 
-<h1 align="center">Pounce</h1>
+<h1 align="center">FileCraft</h1>
 
 <p align="center">Part of <a href="https://github.com/pierruno-labs">Pierruno Labs</a></p>
 
 Instant file search for Windows: a desktop app in the spirit of
 [Everything](https://www.voidtools.com/), written in Rust. It indexes every file and folder on your
 fixed drives and filters millions of entries as you type.
-
-![Pounce: the search window with results and a code preview](docs/media/pounce-hero.png)
-
-▶ [Watch the 15-second launch video](docs/media/pounce-launch.mp4)
 
 ## Features
 
@@ -38,14 +34,14 @@ Measured on a machine with 7 drives and 13 million files, without admin rights:
 
 ```powershell
 cargo build --release
-.\target\release\Pounce.exe
+.\target\release\FileCraft.exe
 ```
 
 Run it as administrator (or click **⚡ Run as admin** in the status bar) for MFT indexing.
 
 ```powershell
 cargo test                                                        # unit tests
-$env:POUNCE_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignored --nocapture
+$env:FILECRAFT_BENCH_ROOT = "D:\"; cargo test --release bench_real_drive -- --ignored --nocapture
 ```
 
 ## Documentation

@@ -16,7 +16,7 @@ use eframe::egui;
 fn main() -> eframe::Result {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Pounce")
+            .with_title("FileCraft")
             .with_inner_size([1200.0, 760.0])
             .with_min_inner_size([640.0, 400.0])
             .with_icon(app_icon()),
@@ -24,13 +24,13 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Pounce",
+        "FileCraft",
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
             #[cfg(windows)]
             set_taskbar_icon(cc);
-            Ok(Box::new(app::PounceApp::new(cc)))
+            Ok(Box::new(app::FileCraftApp::new(cc)))
         }),
     )
 }

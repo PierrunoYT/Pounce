@@ -468,7 +468,7 @@ pub fn data_dir() -> PathBuf {
     std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir)
-        .join("Pounce")
+        .join("FileCraft")
 }
 
 pub fn cache_path(letter: char) -> PathBuf {
@@ -668,7 +668,7 @@ pub mod tests {
     #[test]
     fn cache_round_trip() {
         let v = sample();
-        let path = std::env::temp_dir().join(format!("pounce-test-{}.idx", std::process::id()));
+        let path = std::env::temp_dir().join(format!("filecraft-test-{}.idx", std::process::id()));
         v.save(&path).unwrap();
         let loaded = VolumeIndex::load(&path).unwrap();
         let _ = fs::remove_file(&path);
